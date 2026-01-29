@@ -1,0 +1,11 @@
+.card {
+  max-width: 600px;
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #ddd;
+}
+
+.list {
+  padding-left: 20px;
+}

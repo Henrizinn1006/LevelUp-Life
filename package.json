@@ -5,6 +5,7 @@
   "type": "module",
   "main": "skill-routine/server/src/server.js",
   "scripts": {
+    "postinstall": "npm --prefix skill-routine/server install",
     "start": "npm --prefix skill-routine/server start",
     "dev": "npm --prefix skill-routine/server dev"
   },
