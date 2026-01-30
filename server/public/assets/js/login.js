@@ -1,82 +1,111 @@
-let isRegister = false;
+const TOKEN_KEY = "skillRoutine_token";
+const REMEMBER_KEY = "skillRoutine_remember";
 
-const form = document.getElementById("authForm");
-const toggleBtn = document.getElementById("btnToggle");
-const formTitle = document.getElementById("formTitle");
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+}
 
-const usernameField = document.getElementById("usernameField");
-const confirmField = document.getElementById("confirmField");
+function setToken(token, remember) {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 
-const username = document.getElementById("username");
-const confirm = document.getElementById("confirmPassword");
-const email = document.getElementById("email");
-const password = document.getElementById("password");
-const error = document.getElementById("error");
+  if (!token) return;
 
-toggleBtn.addEventListener("click", () => {
-  isRegister = !isRegister;
+  if (remember) localStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.setItem(TOKEN_KEY, token);
+}
 
-  if (isRegister) {
-    formTitle.textContent = "Criar conta";
-    toggleBtn.textContent = "Já tenho conta";
-    usernameField.classList.remove("hidden");
-    confirmField.classList.remove("hidden");
-  } else {
-    formTitle.textContent = "Login";
-    toggleBtn.textContent = "Criar conta";
-    usernameField.classList.add("hidden");
-    confirmField.classList.add("hidden");
-  }
+async function apiFetch(url, opts = {}) {
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  const res = await fetch(url, { ...opts, headers });
 
-  if (error) error.style.display = "none";
-});
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch {}
 
-async function apiFetch(url, body) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro na API");
   return data;
 }
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (error) error.style.display = "none";
+// refs
+const elRemember = document.getElementById("remember");
+const elEmail = document.getElementById("email");
+const elPass = document.getElementById("pass");
+const elMsg = document.getElementById("msg");
 
-  const payload = {
-    email: email.value.trim(),
-    password: password.value
-  };
+// remember pref
+const savedRemember = localStorage.getItem(REMEMBER_KEY);
+if (savedRemember !== null) elRemember.checked = (savedRemember === "1");
+
+elRemember.addEventListener("change", () => {
+  localStorage.setItem(REMEMBER_KEY, elRemember.checked ? "1" : "0");
+});
+
+// auto redirect if token valid
+(async () => {
+  const token = getToken();
+  if (!token) return;
 
   try {
-    let data;
-    if (isRegister) {
-      if (!username.value || !confirm.value) {
-        throw new Error("Preencha todos os campos");
-      }
-      if (password.value !== confirm.value) {
-        throw new Error("As senhas não coincidem");
-      }
-      data = await apiFetch("/auth/register", {
-        ...payload,
-        username: username.value.trim()
-      });
-    } else {
-      data = await apiFetch("/auth/login", payload);
-    }
+    const res = await fetch("/api/state", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) window.location.href = "/app";
+  } catch {}
+})();
 
-    if (data?.token) {
-      localStorage.setItem("skillRoutine_token", data.token);
-    }
+function tryLoginOnEnter(e) {
+  if (e.key === "Enter") {
+    document.getElementById("btnLogin").click();
+  }
+}
+elEmail.addEventListener("keydown", tryLoginOnEnter);
+elPass.addEventListener("keydown", tryLoginOnEnter);
 
+function basicValidate(email, password) {
+  if (!email || !email.includes("@")) throw new Error("Email inválido");
+  if (!password || password.length < 4) throw new Error("Senha muito curta (mín 4)");
+}
+
+document.getElementById("btnRegister").addEventListener("click", async () => {
+  try {
+    elMsg.textContent = "Criando conta...";
+
+    const email = elEmail.value.trim();
+    const password = elPass.value;
+    basicValidate(email, password);
+
+    const { token, email: okEmail } = await apiFetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+
+    setToken(token, elRemember.checked);
+    elMsg.textContent = `Conta criada: ${okEmail}. Indo para o app...`;
     window.location.href = "/app";
   } catch (e) {
-    if (error) {
-      error.textContent = e.message;
-      error.style.display = "block";
-    }
+    elMsg.textContent = e.message;
+  }
+});
+
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  try {
+    elMsg.textContent = "Entrando...";
+
+    const email = elEmail.value.trim();
+    const password = elPass.value;
+    basicValidate(email, password);
+
+    const { token, email: okEmail } = await apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+
+    setToken(token, elRemember.checked);
+    elMsg.textContent = `Logado como ${okEmail}. Indo para o app...`;
+    window.location.href = "/app";
+  } catch (e) {
+    elMsg.textContent = e.message;
   }
 });

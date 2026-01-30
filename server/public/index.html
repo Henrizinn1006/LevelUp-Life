@@ -10,7 +10,6 @@
   const token =
     localStorage.getItem("skillRoutine_token") ||
     sessionStorage.getItem("skillRoutine_token");
-
   window.location.replace(token ? "/app" : "/login");
 </script>
 </body>
