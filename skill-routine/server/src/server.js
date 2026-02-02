@@ -19,7 +19,7 @@ app.use(express.json({ limit: "2mb" }));
 initDB();
 
 // ====== CONFIG ======
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "troque-essa-chave-depois";
 
 function normalizeEmail(email) {

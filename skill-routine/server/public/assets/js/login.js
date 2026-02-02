@@ -18,6 +18,13 @@ const regConfirm = document.getElementById("regConfirm");
 const regMsg = document.getElementById("regMsg");
 
 const TOKEN_KEY = "skillRoutine_token";
+const API_URL = "https://levelup-life-j5p1.onrender.com";
+
+function withApiUrl(path) {
+  if (!path) return API_URL;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
 function saveToken(token) {
   localStorage.removeItem(TOKEN_KEY);
@@ -38,7 +45,7 @@ function showMsg(el, text) {
 }
 
 async function apiPost(url, body) {
-  const res = await fetch(url, {
+  const res = await fetch(withApiUrl(url), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

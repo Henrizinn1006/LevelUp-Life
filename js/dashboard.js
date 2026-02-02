@@ -24,6 +24,13 @@ const xpText = $("xpText");
 const xpOk = $("xpOk");
 
 const TOKEN_KEY = "skillRoutine_token";
+const API_URL = "https://levelup-life-j5p1.onrender.com";
+
+function withApiUrl(path) {
+  if (!path) return API_URL;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
 // ===== Amigos (UI) =====
 const friendNickEl = $("friendNick");
@@ -177,14 +184,14 @@ function migrateStateSkills(state) {
 }
 
 async function apiGet(url) {
-  const res = await fetch(url, { headers: { ...authHeaders() } });
+  const res = await fetch(withApiUrl(url), { headers: { ...authHeaders() } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro na API");
   return data;
 }
 
 async function apiPost(url, body) {
-  const res = await fetch(url, {
+  const res = await fetch(withApiUrl(url), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
@@ -195,7 +202,7 @@ async function apiPost(url, body) {
 }
 
 async function apiPut(url, body) {
-  const res = await fetch(url, {
+  const res = await fetch(withApiUrl(url), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
