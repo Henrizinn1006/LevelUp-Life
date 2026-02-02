@@ -461,8 +461,8 @@ app.get("/api/users/public", auth, async (req, res) => {
 });
 
 // ===== Static =====
-const ROOT_DIR = path.join(__dirname, "..", "..", "..");
-const LEGACY_ASSETS_DIR = path.join(__dirname, "..", "public", "assets");
+const ROOT_DIR = path.join(__dirname, "..", "public");
+const LEGACY_ASSETS_DIR = path.join(ROOT_DIR, "assets");
 
 app.use(express.static(ROOT_DIR));
 app.use("/assets", express.static(LEGACY_ASSETS_DIR));
