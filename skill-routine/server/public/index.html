@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1aff6a">
+  <title>Skill Routine</title>
+</head>
+<body>
+<script>
+  const token =
+    localStorage.getItem("skillRoutine_token") ||
+    sessionStorage.getItem("skillRoutine_token");
+  window.location.replace(token ? "/app" : "/login");
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
+</script>
+</body>
+</html>
