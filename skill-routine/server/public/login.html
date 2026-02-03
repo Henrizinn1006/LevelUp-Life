@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LifeUp Life • Login</title>
+
+  <link rel="stylesheet" href="/assets/css/global.css">
+  <link rel="stylesheet" href="/assets/css/login.css">
+</head>
+
+<body class="auth-page">
+  <canvas id="bg"></canvas>
+
+  <main class="auth-wrap">
+    <section class="auth-card">
+      <header class="brand">
+        <img class="brand-logo" src="/assets/img/logo.png" alt="LifeUp Life" />
+        <p class="subtitle">Entre na sua conta para acessar suas skills.</p>
+      </header>
+
+      <div class="card neon">
+        <h2>Login</h2>
+
+        <div class="grid-2">
+          <label class="field">
+            <span>Email</span>
+            <input id="email" type="email" autocomplete="email" />
+          </label>
+
+          <label class="field">
+            <span>Senha</span>
+            <input id="pass" type="password" autocomplete="current-password" />
+          </label>
+        </div>
+
+        <label class="remember-row">
+          <input id="rememberMe" type="checkbox" />
+          <span>Lembrar de mim</span>
+        </label>
+
+        <div class="actions">
+          <button type="button" class="btn primary" id="btnLogin">Entrar</button>
+          <button type="button" class="btn ghost" id="btnRegister">Criar conta</button>
+        </div>
+
+        <p class="msg" id="msg"></p>
+      </div>
+    </section>
+  </main>
+<!-- MODAL: Criar conta -->
+<div id="registerModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>Criar conta</h3>
+
+    <label class="field">
+      <span>Nick</span>
+      <input id="regUsername" type="text" placeholder="Ex: felippe01" />
+    </label>
+
+    <label class="field">
+      <span>Email</span>
+      <input id="regEmail" type="email" autocomplete="email" />
+    </label>
+
+    <label class="field">
+      <span>Senha</span>
+      <input id="regPass" type="password" autocomplete="new-password" />
+    </label>
+
+    <label class="field">
+      <span>Confirmar senha</span>
+      <input id="regConfirm" type="password" autocomplete="new-password" />
+    </label>
+
+    <p class="msg" id="regMsg"></p>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="btnDoRegister">Criar</button>
+      <button type="button" class="btn ghost" id="btnCloseRegister">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+  <script type="module" src="/assets/js/background.js"></script>
+  <script type="module" src="/assets/js/login.js"></script>
+</body>
+</html>

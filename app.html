@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1aff6a">
+  <link rel="icon" href="/skill-routine/server/public/assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/skill-routine/server/public/assets/icons/icon-192.png">
+  <title>Skill Routine • App</title>
+
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-side"></div>
+
+      <div class="topbar-center">
+        <img src="/assets/logo.png" alt="Skill Routine" class="app-logo" />
+      </div>
+
+      <div class="topbar-side right">
+        <button class="danger" id="btnLogout">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid" style="margin-top:14px;">
+    <div class="card">
+      <div class="row between" style="align-items:flex-start;">
+        <div>
+          <h2 style="margin:0 0 6px;">Registrar atividade</h2>
+          <div class="muted">
+            Gamificado • XP por atividade • níveis por skill • quests diárias
+          </div>
+        </div>
+
+        <!-- Rank pessoal -->
+        <div class="personal-rank" id="personalRank"></div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <label>Atividade</label><br/>
+          <select id="activity"></select>
+        </div>
+        <div>
+          <label>Minutos</label><br/>
+          <input id="minutes" type="number" min="1" value="30" />
+        </div>
+        <div>
+          <label>Dificuldade</label><br/>
+          <select id="difficulty">
+            <option value="facil">Fácil</option>
+            <option value="medio">Médio</option>
+            <option value="dificil">Difícil</option>
+          </select>
+        </div>
+        <div>
+          <label>Sem distração?</label><br/>
+          <select id="nodistraction">
+            <option value="nao">Não</option>
+            <option value="sim">Sim</option>
+          </select>
+        </div>
+        <div class="mt18">
+          <button class="primary" id="btnComplete">Concluir (+XP)</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row between">
+        <div>
+          <strong>Resumo do dia</strong>
+          <div class="muted" id="dayInfo"></div>
+        </div>
+        <div class="row">
+          <button id="btnNewQuests">Gerar quests do dia</button>
+          <button class="danger" id="btnReset">Resetar tudo</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3 style="margin:0 0 8px;">Quests diárias</h3>
+      <div class="quests" id="quests"></div>
+
+      <div class="hr"></div>
+
+      <h3 style="margin:0 0 8px;">Histórico</h3>
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="card">
+      <!-- AMIGOS -->
+      <h2 style="margin:0 0 10px;">Amigos</h2>
+
+      <div class="row" style="gap:10px; align-items:flex-end;">
+        <div style="flex:1;">
+          <label>Adicionar por nick</label><br/>
+          <input id="friendNick" placeholder="ex: felippe01" maxlength="20" />
+          <div class="muted" style="margin-top:6px;">Digite pelo menos 2 letras para aparecer a lista.</div>
+        </div>
+
+        <button class="primary" id="btnAddFriend">Adicionar</button>
+      </div>
+
+      <div id="friendSuggestions" class="suggestions"></div>
+      <div class="muted" id="friendsMsg" style="margin-top:8px;"></div>
+
+      <div class="hr"></div>
+
+      <h3 style="margin:0 0 8px;">Pedidos</h3>
+      <div class="log" id="friendRequests"></div>
+
+      <div class="hr"></div>
+
+      <h3 style="margin:0 0 8px;">Meus amigos</h3>
+      <div class="log" id="friendsList"></div>
+
+      <div class="hr"></div>
+
+      <!-- RANKING -->
+      <h2 style="margin:0 0 10px;">Ranking</h2>
+
+      <div class="row between" style="align-items:flex-end;">
+        <div style="flex:1;">
+          <label>Skill</label><br/>
+          <select id="rankSkill"></select>
+        </div>
+        <button id="btnRefreshRank">Atualizar</button>
+      </div>
+
+      <div class="muted" id="rankMsg" style="margin-top:8px;"></div>
+      <div class="log" id="rankList" style="margin-top:10px;"></div>
+
+      <div class="hr"></div>
+
+      <!-- SKILLS -->
+      <h2 style="margin:0 0 8px;">Skills</h2>
+      <canvas id="radar" width="360" height="360" style="width:100%; max-width:420px; display:block; margin: 6px auto 12px;"></canvas>
+      <div class="muted center" style="margin-bottom:10px;">
+        Radar (normalizado pelo nível mais alto)
+      </div>
+      <div class="skills" id="skills"></div>
+    </div>
+  </div>
+
+  <!-- MODAL XP -->
+  <div id="xpModal" class="modal hidden">
+    <div class="modal-box">
+      <h3>✨ Atividade concluída</h3>
+      <p id="xpText"></p>
+      <button id="xpOk" class="primary">OK</button>
+    </div>
+  </div>
+
+  <script type="module" src="/js/dashboard.js"></script>
+  <script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+  </script>
+</body>
+</html>
