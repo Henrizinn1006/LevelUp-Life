@@ -1,4 +1,5 @@
 // server/public/assets/js/dashboard.js
+const API_BASE = "https://levelup-life-ncrx.onrender.com";
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,13 +25,20 @@ const xpText = $("xpText");
 const xpOk = $("xpOk");
 
 const TOKEN_KEY = "skillRoutine_token";
-const API_URL = window.location.origin;
+
+// Usa a API pública quando estiver fora do Render.
+// Se o site estiver aberto no próprio Render, usa a mesma origem.
+const API_URL =
+  window.location.hostname.includes("onrender.com")
+    ? window.location.origin
+    : API_BASE;
 
 function withApiUrl(path) {
   if (!path) return API_URL;
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
+
 
 // ===== Amigos (UI) =====
 const friendNickEl = $("friendNick");
@@ -792,7 +800,7 @@ function setRadarHighlight(skillIds) {
 async function boot() {
   const token = getToken();
   if (!token) {
-    window.location.replace("/login");
+   window.location.replace("login.html");
     return;
   }
 
@@ -837,14 +845,14 @@ async function boot() {
     console.error(e);
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
-    window.location.replace("/login");
+    window.location.replace("login.html");
   }
 }
 
 btnLogout?.addEventListener("click", () => {
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
-  window.location.replace("/login");
+  window.location.replace("login.html");
 });
 
 xpOk?.addEventListener("click", hideXP);

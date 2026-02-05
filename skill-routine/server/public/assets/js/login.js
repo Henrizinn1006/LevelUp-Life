@@ -1,3 +1,4 @@
+const API_BASE = "https://levelup-life-ncrx.onrender.com";
 const emailEl = document.getElementById("email");
 const passEl = document.getElementById("pass");
 const msgEl = document.getElementById("msg");
@@ -18,7 +19,13 @@ const regConfirm = document.getElementById("regConfirm");
 const regMsg = document.getElementById("regMsg");
 
 const TOKEN_KEY = "skillRoutine_token";
-const API_URL = window.location.origin;
+
+// Se estiver rodando no Render, usa a própria origem.
+// Se estiver no GitHub Pages (ou qualquer outro lugar), usa a API pública.
+const API_URL =
+  window.location.hostname.includes("onrender.com")
+    ? window.location.origin
+    : API_BASE;
 
 function withApiUrl(path) {
   if (!path) return API_URL;
@@ -103,7 +110,8 @@ btnLogin?.addEventListener("click", async () => {
     const data = await apiPost("/auth/login", { email, password });
 
     if (data?.token) saveToken(data.token);
-    window.location.href = "/app";
+    window.location.href = "app.html";
+
   } catch (e) {
     showMsg(msgEl, e.message);
   }
@@ -126,7 +134,7 @@ async function doRegister() {
   const data = await apiPost("/auth/register", { username, email, password });
 
   if (data?.token) saveToken(data.token);
-  window.location.href = "/app";
+  window.location.href = "app.html";
 }
 
 btnDoRegister?.addEventListener("click", async () => {
