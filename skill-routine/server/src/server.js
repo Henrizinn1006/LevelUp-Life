@@ -13,15 +13,34 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: "2mb" }));
 
-initDB();
+// Render / reverse proxy (ajuda com req.ip, https, etc.)
+app.set("trust proxy", 1);
 
 // ====== CONFIG ======
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "troque-essa-chave-depois";
 
+// Se quiser travar CORS só no seu frontend, use ORIGINS no Render.
+// Ex: ORIGINS="https://lipezin007.github.io,http://localhost:5500"
+const ORIGINS = (process.env.ORIGINS || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: ORIGINS.length ? ORIGINS : true, // sem ORIGINS: libera geral (bom pra teste)
+    credentials: true,
+  })
+);
+
+app.use(express.json({ limit: "2mb" }));
+
+// ====== DB ======
+initDB();
+
+// ====== Helpers ======
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
@@ -81,6 +100,10 @@ function defaultState() {
 }
 
 // ====== ROUTES ======
+app.get("/", (req, res) => {
+  res.json({ status: "LevelUpLife API ONLINE" });
+});
+
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Register (com username)
@@ -477,8 +500,10 @@ app.get("/app", (req, res) => res.sendFile(path.join(ROOT_DIR, "app.html")));
 
 // ===== Start server =====
 const HOST = process.env.HOST || "0.0.0.0";
-const HTTPS_KEY_PATH = process.env.HTTPS_KEY || path.join(__dirname, "..", "certs", "key.pem");
-const HTTPS_CERT_PATH = process.env.HTTPS_CERT || path.join(__dirname, "..", "certs", "cert.pem");
+const HTTPS_KEY_PATH =
+  process.env.HTTPS_KEY || path.join(__dirname, "..", "certs", "key.pem");
+const HTTPS_CERT_PATH =
+  process.env.HTTPS_CERT || path.join(__dirname, "..", "certs", "cert.pem");
 
 function getLanAddresses() {
   const nets = os.networkInterfaces();
@@ -486,9 +511,7 @@ function getLanAddresses() {
 
   for (const name of Object.keys(nets)) {
     for (const net of nets[name] || []) {
-      if (net.family === "IPv4" && !net.internal) {
-        results.push(net.address);
-      }
+      if (net.family === "IPv4" && !net.internal) results.push(net.address);
     }
   }
 
@@ -499,32 +522,38 @@ function logLanUrls(port, protocol) {
   const lanIps = getLanAddresses();
   if (lanIps.length) {
     console.log("Acesse no celular usando:");
-    for (const ip of lanIps) {
-      console.log(`- ${protocol}://${ip}:${port}`);
-    }
+    for (const ip of lanIps) console.log(`- ${protocol}://${ip}:${port}`);
   } else {
     console.log("Não foi possível detectar IPs de rede local.");
   }
 }
 
-const useHttps =
-  process.env.HTTPS === "true" ||
-  process.env.HTTPS === "1" ||
-  (fs.existsSync(HTTPS_KEY_PATH) && fs.existsSync(HTTPS_CERT_PATH));
+// Em PRODUÇÃO (Render), não tente HTTPS dentro do Node.
+// O Render já fornece HTTPS externamente.
+const isProd = process.env.NODE_ENV === "production";
 
-if (useHttps) {
+// HTTPS local só quando explicitamente habilitado
+const wantsHttps =
+  process.env.HTTPS === "true" || process.env.HTTPS === "1";
+
+const hasCerts =
+  fs.existsSync(HTTPS_KEY_PATH) && fs.existsSync(HTTPS_CERT_PATH);
+
+if (!isProd && wantsHttps && hasCerts) {
+  // ===== DEV: HTTPS local =====
   const key = fs.readFileSync(HTTPS_KEY_PATH);
   const cert = fs.readFileSync(HTTPS_CERT_PATH);
 
   https.createServer({ key, cert }, app).listen(PORT, HOST, () => {
     const localUrl = `https://localhost:${PORT}`;
-    console.log(`Servidor HTTPS rodando em ${localUrl} (host: ${HOST})`);
+    console.log(`Servidor HTTPS (DEV) rodando em ${localUrl} (host: ${HOST})`);
     logLanUrls(PORT, "https");
   });
 } else {
-  app.listen(PORT, HOST, () => {
+  // ===== PROD (Render) + DEV normal (HTTP) =====
+  app.listen(PORT, "0.0.0.0", () => {
     const localUrl = `http://localhost:${PORT}`;
-    console.log(`Servidor HTTP rodando em ${localUrl} (host: ${HOST})`);
-    logLanUrls(PORT, "http");
+    console.log(`🚀 API LevelUpLife rodando na porta ${PORT}`);
+    if (!isProd) logLanUrls(PORT, "http");
   });
 }
