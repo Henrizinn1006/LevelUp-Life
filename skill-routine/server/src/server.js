@@ -472,7 +472,7 @@ app.get("/assets/logo.png", (req, res) =>
 );
 
 app.get("/", (req, res) => res.sendFile(path.join(ROOT_DIR, "index.html")));
-app.get("/login", (req, res) => res.sendFile(path.join(ROOT_DIR, "index.html")));
+app.get("/login", (req, res) => res.sendFile(path.join(ROOT_DIR, "login.html")));
 app.get("/app", (req, res) => res.sendFile(path.join(ROOT_DIR, "app.html")));
 
 // ===== Start server =====

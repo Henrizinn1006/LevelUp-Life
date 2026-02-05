@@ -24,7 +24,7 @@ const xpText = $("xpText");
 const xpOk = $("xpOk");
 
 const TOKEN_KEY = "skillRoutine_token";
-const API_URL = "https://levelup-life-j5p1.onrender.com";
+const API_URL = window.location.origin;
 
 function withApiUrl(path) {
   if (!path) return API_URL;
