@@ -20,8 +20,7 @@ const regMsg = document.getElementById("regMsg");
 
 const TOKEN_KEY = "skillRoutine_token";
 
-// Se estiver rodando no Render, usa a própria origem.
-// Se estiver no GitHub Pages (ou qualquer outro lugar), usa a API pública.
+/* ✅ CORREÇÃO 1: API_URL não pode ser window.location.origin no GitHub Pages */
 const API_URL =
   window.location.hostname.includes("onrender.com")
     ? window.location.origin
@@ -96,6 +95,11 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+/* ✅ helper de navegação (evita /app quebrar em páginas estáticas) */
+function goApp() {
+  window.location.href = "app.html";
+}
+
 // Login
 btnLogin?.addEventListener("click", async () => {
   try {
@@ -110,8 +114,9 @@ btnLogin?.addEventListener("click", async () => {
     const data = await apiPost("/auth/login", { email, password });
 
     if (data?.token) saveToken(data.token);
-    window.location.href = "app.html";
 
+    /* ✅ CORREÇÃO 2: /app -> app.html */
+    goApp();
   } catch (e) {
     showMsg(msgEl, e.message);
   }
@@ -134,7 +139,9 @@ async function doRegister() {
   const data = await apiPost("/auth/register", { username, email, password });
 
   if (data?.token) saveToken(data.token);
-  window.location.href = "app.html";
+
+  /* ✅ CORREÇÃO 2: /app -> app.html */
+  goApp();
 }
 
 btnDoRegister?.addEventListener("click", async () => {

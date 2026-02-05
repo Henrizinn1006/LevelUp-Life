@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Skill Routine • App</title>
 
-  <link rel="stylesheet" href="/assets/css/global.css">
-  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/dashboard.css">
 </head>
 
 <body>
@@ -15,7 +15,7 @@
       <div class="topbar-side"></div>
 
       <div class="topbar-center">
-        <img src="/assets/img/logo.png" alt="Skill Routine" class="app-logo" />
+        <img src="assets/img/logo.png" alt="Skill Routine" class="app-logo" />
       </div>
 
       <div class="topbar-side right">
@@ -101,7 +101,9 @@
         <div style="flex:1;">
           <label>Adicionar por nick</label><br/>
           <input id="friendNick" placeholder="ex: felippe01" maxlength="20" />
-          <div class="muted" style="margin-top:6px;">Digite pelo menos 2 letras para aparecer a lista.</div>
+          <div class="muted" style="margin-top:6px;">
+            Digite pelo menos 2 letras para aparecer a lista.
+          </div>
         </div>
 
         <button class="primary" id="btnAddFriend">Adicionar</button>
@@ -140,7 +142,12 @@
 
       <!-- SKILLS -->
       <h2 style="margin:0 0 8px;">Skills</h2>
-      <canvas id="radar" width="360" height="360" style="width:100%; max-width:420px; display:block; margin: 6px auto 12px;"></canvas>
+      <canvas
+        id="radar"
+        width="360"
+        height="360"
+        style="width:100%; max-width:420px; display:block; margin: 6px auto 12px;">
+      </canvas>
       <div class="muted center" style="margin-bottom:10px;">
         Radar (normalizado pelo nível mais alto)
       </div>
@@ -157,6 +164,6 @@
     </div>
   </div>
 
-  <script type="module" src="/assets/js/dashboard.js"></script>
+  <script type="module" src="assets/js/dashboard.js"></script>
 </body>
 </html>
