@@ -1,19 +1,21 @@
 {
-  "name": "skill-routine-server",
+  "name": "skillroutine-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "skill-routine/server/src/server.js",
+  "main": "src/server.js",
   "scripts": {
-    "postinstall": "npm --prefix skill-routine/server install",
-    "start": "npm --prefix skill-routine/server start",
-    "dev": "npm --prefix skill-routine/server dev"
+    "start": "node src/server.js",
+    "dev": "cross-env NODE_ENV=development node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2",
-    "sqlite3": "^5.1.7"
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.18.0"
   }
 }

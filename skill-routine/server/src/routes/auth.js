@@ -1,73 +1,75 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { run, get } from "../../db.js";
+import { run, get } from "../../db.js"; // ajuste caminho se o seu for diferente
 
 const router = express.Router();
+
 const JWT_SECRET = process.env.JWT_SECRET || "troque-essa-chave-depois";
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
-function defaultState() {
-  const SKILL_IDS = [
-    "determinacao","inteligencia","disciplina","organizacao","saude","energia","criatividade","social"
-  ];
-  const skills = {};
-  for (const id of SKILL_IDS) skills[id] = { level: 1, xp: 0 };
-  return { createdAt: Date.now(), skills, dailyEarned: {}, questsByDay: {}, log: [] };
+function normalizeUsername(username) {
+  return String(username || "").trim();
+}
+
+function validUsername(username) {
+  return /^[a-zA-Z0-9_]{2,20}$/.test(username);
 }
 
 router.post("/register", async (req, res) => {
   try {
-    const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || "");
+    const username = normalizeUsername(req.body.username);
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
-    if (!email || !email.includes("@")) return res.status(400).json({ error: "Email inválido" });
+    if (!validUsername(username)) return res.status(400).json({ error: "Nick inválido (2-20, letras/números/_)" });
+    if (!email.includes("@")) return res.status(400).json({ error: "Email inválido" });
     if (password.length < 4) return res.status(400).json({ error: "Senha muito curta (mín 4)" });
 
-    const passwordHash = bcrypt.hashSync(password, 10);
-    const now = Date.now();
+    const existsEmail = await get("SELECT id FROM users WHERE email = $1", [email]);
+    if (existsEmail) return res.status(409).json({ error: "Email já cadastrado" });
 
-    await run(
-      `INSERT INTO users (email, password_hash, created_at, updated_at) VALUES (?,?,?,?)`,
-      [email, passwordHash, now, now]
+    const existsUser = await get("SELECT id FROM users WHERE username = $1", [username]);
+    if (existsUser) return res.status(409).json({ error: "Nick já em uso" });
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const r = await run(
+      "INSERT INTO users (email, username, password) VALUES ($1, $2, $3) RETURNING id, email, username",
+      [email, username, hash]
     );
 
-    const user = await get(`SELECT id, email FROM users WHERE email = ?`, [email]);
+    const user = r.rows?.[0];
+    const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: "30d" });
 
-    await run(
-      `INSERT INTO states (user_id, state_json, updated_at) VALUES (?,?,?)`,
-      [user.id, JSON.stringify(defaultState()), now]
-    );
-
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "30d" });
-    return res.json({ token, email });
+    return res.json({ ok: true, token, user: { id: user.id, email: user.email, username: user.username } });
   } catch (e) {
-    if (String(e?.message || "").includes("UNIQUE")) {
-      return res.status(409).json({ error: "Email já cadastrado" });
-    }
-    console.error(e);
+    console.error("REGISTER ERROR:", e);
     return res.status(500).json({ error: "Erro no servidor" });
   }
 });
 
 router.post("/login", async (req, res) => {
   try {
-    const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || "");
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
-    const user = await get(`SELECT id, email, password_hash FROM users WHERE email = ?`, [email]);
-    if (!user) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+    if (!email.includes("@")) return res.status(400).json({ error: "Email inválido" });
+    if (password.length < 4) return res.status(400).json({ error: "Senha muito curta (mín 4)" });
 
-    const ok = bcrypt.compareSync(password, user.password_hash);
-    if (!ok) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+    const user = await get("SELECT id, email, username, password FROM users WHERE email = $1", [email]);
+    if (!user) return res.status(401).json({ error: "Usuário não encontrado" });
 
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "30d" });
-    return res.json({ token, email });
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(401).json({ error: "Senha incorreta" });
+
+    const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+    return res.json({ ok: true, token, user: { id: user.id, email: user.email, username: user.username } });
   } catch (e) {
-    console.error(e);
+    console.error("LOGIN ERROR:", e);
     return res.status(500).json({ error: "Erro no servidor" });
   }
 });

@@ -17,10 +17,10 @@ router.get("/state", auth, async (req, res) => {
   try {
     const email = req.user.email;
 
-    const user = await get(`SELECT id FROM users WHERE email = ?`, [email]);
+    const user = await get("SELECT id FROM users WHERE email = $1", [email]);
     if (!user) return res.status(404).json({ error: "Conta não encontrada" });
 
-    const row = await get(`SELECT state_json FROM states WHERE user_id = ?`, [user.id]);
+    const row = await get("SELECT state_json FROM states WHERE user_id = $1", [user.id]);
     const state = row?.state_json ? JSON.parse(row.state_json) : defaultState();
 
     return res.json({ state });
@@ -39,7 +39,7 @@ router.put("/state", auth, async (req, res) => {
       return res.status(400).json({ error: "state inválido" });
     }
 
-    const user = await get(`SELECT id FROM users WHERE email = ?`, [email]);
+    const user = await get("SELECT id FROM users WHERE email = $1", [email]);
     if (!user) return res.status(404).json({ error: "Conta não encontrada" });
 
     const now = Date.now();

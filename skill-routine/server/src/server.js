@@ -37,8 +37,19 @@ app.use(
 
 app.use(express.json({ limit: "2mb" }));
 
-// ====== DB ======
-initDB();
+// ====== DB + START ======
+async function start() {
+  await initDB();
+
+  // ⚠️ aqui embaixo você mantém seu código de app.listen (HTTP/HTTPS) como já está no final do arquivo
+  // Se você tiver lógica useHttps etc no final, deixe ela dentro do start() ou chame start() antes dela.
+}
+
+start().catch((err) => {
+  console.error("Falha ao iniciar (initDB):", err);
+  process.exit(1);
+});
+
 
 // ====== Helpers ======
 function normalizeEmail(email) {
@@ -71,7 +82,8 @@ function auth(req, res, next) {
 
 async function getAuthedUser(req) {
   const email = req.user.email;
-  return await get(`SELECT id, email, username FROM users WHERE email = ?`, [email]);
+  return await get("SELECT id, email FROM users WHERE email = $1", [email]);
+
 }
 
 // ====== Default state ======
@@ -132,7 +144,8 @@ app.post("/auth/register", async (req, res) => {
       [email, passwordHash, username, now, now]
     );
 
-    const user = await get(`SELECT id, email, username FROM users WHERE email = ?`, [email]);
+    const user = await get("SELECT id, email FROM users WHERE email = $1", [email]);
+
 
     await run(
       `INSERT INTO states (user_id, state_json, updated_at) VALUES (?,?,?)`,
@@ -163,7 +176,7 @@ app.post("/auth/login", async (req, res) => {
     const password = String(req.body?.password || "");
 
     const user = await get(
-      `SELECT id, email, username, password_hash FROM users WHERE email = ?`,
+      `SELECT id, email, username, password_hash FROM users WHERE email = $1`,
       [email]
     );
     if (!user) return res.status(401).json({ error: "Usuário ou senha inválidos" });
