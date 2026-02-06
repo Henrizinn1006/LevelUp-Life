@@ -1,5 +1,4 @@
 // server/public/assets/js/dashboard.js
-const API_BASE = "https://levelup-life-ncrx.onrender.com";
 
 const $ = (id) => document.getElementById(id);
 
@@ -25,11 +24,10 @@ const xpText = $("xpText");
 const xpOk = $("xpOk");
 
 const TOKEN_KEY = "skillRoutine_token";
+const API_BASE = "https://levelup-life-ncrx.onrender.com";
 
-// Usa a API pública quando estiver fora do Render.
-// Se o site estiver aberto no próprio Render, usa a mesma origem.
 const API_URL =
-  window.location.hostname.includes("onrender.com")
+  window.location.hostname.endsWith("onrender.com")
     ? window.location.origin
     : API_BASE;
 
@@ -38,6 +36,7 @@ function withApiUrl(path) {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
+
 
 
 // ===== Amigos (UI) =====

@@ -1,3 +1,4 @@
+const API_BASE = "https://levelup-life-ncrx.onrender.com";
 const emailEl = document.getElementById("email");
 const passEl = document.getElementById("pass");
 const msgEl = document.getElementById("msg");
@@ -18,7 +19,12 @@ const regConfirm = document.getElementById("regConfirm");
 const regMsg = document.getElementById("regMsg");
 
 const TOKEN_KEY = "skillRoutine_token";
-const API_URL = "https://levelup-life-j5p1.onrender.com";
+
+/* ✅ CORREÇÃO 1: API_URL não pode ser window.location.origin no GitHub Pages */
+const API_URL =
+  window.location.hostname.includes("onrender.com")
+    ? window.location.origin
+    : API_BASE;
 
 function withApiUrl(path) {
   if (!path) return API_URL;
@@ -89,6 +95,11 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+/* ✅ helper de navegação (evita /app quebrar em páginas estáticas) */
+function goApp() {
+  window.location.href = "app.html";
+}
+
 // Login
 btnLogin?.addEventListener("click", async () => {
   try {
@@ -103,7 +114,9 @@ btnLogin?.addEventListener("click", async () => {
     const data = await apiPost("/auth/login", { email, password });
 
     if (data?.token) saveToken(data.token);
-    window.location.href = "/app";
+
+    /* ✅ CORREÇÃO 2: /app -> app.html */
+    goApp();
   } catch (e) {
     showMsg(msgEl, e.message);
   }
@@ -126,7 +139,9 @@ async function doRegister() {
   const data = await apiPost("/auth/register", { username, email, password });
 
   if (data?.token) saveToken(data.token);
-  window.location.href = "/app";
+
+  /* ✅ CORREÇÃO 2: /app -> app.html */
+  goApp();
 }
 
 btnDoRegister?.addEventListener("click", async () => {
