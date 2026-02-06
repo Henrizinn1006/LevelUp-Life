@@ -1,4 +1,5 @@
 const API_BASE = "https://levelup-life-ncrx.onrender.com";
+
 const emailEl = document.getElementById("email");
 const passEl = document.getElementById("pass");
 const msgEl = document.getElementById("msg");
@@ -20,9 +21,13 @@ const regMsg = document.getElementById("regMsg");
 
 const TOKEN_KEY = "skillRoutine_token";
 
-/* ✅ CORREÇÃO 1: API_URL não pode ser window.location.origin no GitHub Pages */
+/**
+ * Em GitHub Pages / site estático, a API é no Render.
+ * Se você abrir direto no domínio do Render (quando estiver servindo front lá),
+ * usa o origin atual.
+ */
 const API_URL =
-  window.location.hostname.includes("onrender.com")
+  window.location.hostname.endsWith("onrender.com")
     ? window.location.origin
     : API_BASE;
 
@@ -32,22 +37,39 @@ function withApiUrl(path) {
   return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
+/** ✅ FIX PRINCIPAL: ler token de session OU local */
+function getToken() {
+  return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+}
+
 function saveToken(token) {
+  // limpa qualquer estado anterior
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
+
   if (!token) return;
 
   const remember = !!rememberEl?.checked;
-  if (remember) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    sessionStorage.setItem(TOKEN_KEY, token);
-  }
+  if (remember) localStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.setItem(TOKEN_KEY, token);
 }
 
 function showMsg(el, text) {
   if (!el) return;
   el.textContent = text || "";
+}
+
+/** ✅ erro mais robusto */
+function extractApiError(data, fallback = "Erro na API") {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  return (
+    data.detail ||
+    data.message ||
+    data.error ||
+    (Array.isArray(data.errors) && data.errors[0]?.message) ||
+    fallback
+  );
 }
 
 async function apiPost(url, body) {
@@ -56,8 +78,9 @@ async function apiPost(url, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Erro na API");
+  if (!res.ok) throw new Error(extractApiError(data, `Erro ${res.status}`));
   return data;
 }
 
@@ -67,10 +90,7 @@ function openRegisterModal() {
   registerModal.classList.remove("hidden");
   showMsg(regMsg, "");
 
-  // pré-preenche email do campo de login, se tiver
   if (regEmail) regEmail.value = (emailEl?.value || "").trim();
-
-  // foco no nick
   regUsername?.focus();
 }
 
@@ -90,14 +110,24 @@ registerModal?.addEventListener("click", (e) => {
 
 // ESC fecha
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && registerModal && !registerModal.classList.contains("hidden")) {
+  if (
+    e.key === "Escape" &&
+    registerModal &&
+    !registerModal.classList.contains("hidden")
+  ) {
     closeRegisterModal();
   }
 });
 
-/* ✅ helper de navegação (evita /app quebrar em páginas estáticas) */
+/** helper de navegação */
 function goApp() {
   window.location.href = "app.html";
+}
+
+/** ✅ (Opcional) já evita “voltar pro login” por token antigo inválido */
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 // Login
@@ -111,11 +141,19 @@ btnLogin?.addEventListener("click", async () => {
     if (!email.includes("@")) throw new Error("Email inválido");
     if (password.length < 4) throw new Error("Senha muito curta (mín 4)");
 
+    clearToken(); // evita “mistura” de token antigo com novo
+
     const data = await apiPost("/auth/login", { email, password });
 
-    if (data?.token) saveToken(data.token);
+    // aceita token em formatos diferentes
+    const token = data?.token || data?.access_token || data?.jwt;
+    if (!token) throw new Error("Login ok, mas API não retornou token.");
 
-    /* ✅ CORREÇÃO 2: /app -> app.html */
+    saveToken(token);
+
+    // DEBUG rápido: descomente se quiser confirmar
+    // console.log("token salvo?", !!getToken(), "remember:", !!rememberEl?.checked);
+
     goApp();
   } catch (e) {
     showMsg(msgEl, e.message);
@@ -136,11 +174,15 @@ async function doRegister() {
   if (password.length < 4) throw new Error("Senha muito curta (mín 4)");
   if (password !== confirm) throw new Error("As senhas não coincidem");
 
+  clearToken();
+
   const data = await apiPost("/auth/register", { username, email, password });
 
-  if (data?.token) saveToken(data.token);
+  const token = data?.token || data?.access_token || data?.jwt;
+  if (!token) throw new Error("Cadastro ok, mas API não retornou token.");
 
-  /* ✅ CORREÇÃO 2: /app -> app.html */
+  saveToken(token);
+
   goApp();
 }
 
