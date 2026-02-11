@@ -18,7 +18,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "troque-essa-chave-depois";
 
 const ORIGINS = (process.env.ORIGINS || "")
   .split(",")
-  .map(s => s.trim())
+  .map((s) => s.trim())
   .filter(Boolean);
 
 app.use(
@@ -45,8 +45,14 @@ function validUsername(username) {
 
 function defaultState() {
   const SKILLS = [
-    "determinacao","inteligencia","disciplina","organizacao",
-    "saude","energia","criatividade","social"
+    "determinacao",
+    "inteligencia",
+    "disciplina",
+    "organizacao",
+    "saude",
+    "energia",
+    "criatividade",
+    "social",
   ];
 
   const skills = {};
@@ -77,20 +83,15 @@ function auth(req, res, next) {
 }
 
 async function getAuthedUser(req) {
-  return await get(
-    "SELECT id, email, username FROM users WHERE email = $1",
-    [req.user.email]
-  );
+  return await get("SELECT id, email, username FROM users WHERE email = $1", [
+    req.user.email,
+  ]);
 }
 
 // ================= BASIC =================
-app.get("/", (req, res) =>
-  res.json({ status: "LevelUpLife API ONLINE" })
-);
+app.get("/", (req, res) => res.json({ status: "LevelUpLife API ONLINE" }));
 
-app.get("/health", (req, res) =>
-  res.json({ ok: true })
-);
+app.get("/health", (req, res) => res.json({ ok: true }));
 
 // ================= AUTH ROUTES =================
 app.post("/auth/register", async (req, res) => {
@@ -110,8 +111,7 @@ app.post("/auth/register", async (req, res) => {
       "SELECT id FROM users WHERE email = $1 OR username = $2",
       [email, username]
     );
-    if (exists)
-      return res.status(409).json({ error: "Usuário já existe" });
+    if (exists) return res.status(409).json({ error: "Usuário já existe" });
 
     const hash = bcrypt.hashSync(password, 10);
 
@@ -162,6 +162,18 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+// ✅ Quem sou eu (para o dashboard)
+app.get("/auth/me", auth, async (req, res) => {
+  try {
+    const me = await getAuthedUser(req); // { id, email, username }
+    if (!me) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json(me);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erro no servidor" });
+  }
+});
+
 // ================= STATE =================
 app.get("/api/state", auth, async (req, res) => {
   const me = await getAuthedUser(req);
@@ -179,18 +191,6 @@ app.put("/api/state", auth, async (req, res) => {
     [me.id, req.body.state]
   );
   res.json({ ok: true });
-});
-
-// ✅ Quem sou eu (para o dashboard)
-app.get("/auth/me", auth, async (req, res) => {
-  try {
-    const me = await getAuthedUser(req); // {id,email,username}
-    if (!me) return res.status(404).json({ error: "Usuário não encontrado" });
-    res.json(me);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erro no servidor" });
-  }
 });
 
 // ================= FRIENDS =================
@@ -211,12 +211,13 @@ app.get("/api/users/search", auth, async (req, res) => {
 
 app.post("/api/friends/request", auth, async (req, res) => {
   const me = await getAuthedUser(req);
-  const target = await get(
-    "SELECT id FROM users WHERE username ILIKE $1",
-    [req.body.username]
-  );
+
+  const target = await get("SELECT id FROM users WHERE username ILIKE $1", [
+    req.body.username,
+  ]);
   if (!target) return res.status(404).json({ error: "Usuário não encontrado" });
 
+  // Se o outro já me pediu, aceita automaticamente
   const opposite = await get(
     "SELECT id FROM friend_requests WHERE from_user=$1 AND to_user=$2",
     [target.id, me.id]
@@ -231,10 +232,12 @@ app.post("/api/friends/request", auth, async (req, res) => {
     return res.json({ status: "accepted" });
   }
 
+  // Cria pedido
   await run(
     "INSERT INTO friend_requests (from_user,to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING",
     [me.id, target.id]
   );
+
   res.json({ status: "pending" });
 });
 
@@ -246,7 +249,85 @@ app.get("/api/friends", auth, async (req, res) => {
      WHERE f.user_id=$1 ORDER BY u.username`,
     [me.id]
   );
-  res.json({ friends: rows.map(r => r.username) });
+  res.json({ friends: rows.map((r) => r.username) });
+});
+
+// ✅ Pedidos recebidos
+app.get("/api/friends/requests", auth, async (req, res) => {
+  const me = await getAuthedUser(req);
+
+  const rows = await all(
+    `SELECT fr.id, u.username AS from_username
+     FROM friend_requests fr
+     JOIN users u ON u.id = fr.from_user
+     WHERE fr.to_user = $1
+     ORDER BY fr.id DESC`,
+    [me.id]
+  );
+
+  res.json({ requests: rows });
+});
+
+// ✅ Aceitar/Recusar pedido
+app.post("/api/friends/respond", auth, async (req, res) => {
+  const me = await getAuthedUser(req);
+  const requestId = Number(req.body?.requestId);
+  const action = String(req.body?.action || "").toLowerCase();
+
+  if (!Number.isFinite(requestId))
+    return res.status(400).json({ error: "requestId inválido" });
+  if (!["accept", "reject"].includes(action))
+    return res.status(400).json({ error: "action inválida" });
+
+  const request = await get(
+    "SELECT id, from_user, to_user FROM friend_requests WHERE id=$1 AND to_user=$2",
+    [requestId, me.id]
+  );
+
+  if (!request) return res.status(404).json({ error: "Pedido não encontrado" });
+
+  if (action === "accept") {
+    await run(
+      "INSERT INTO friends (user_id,friend_id) VALUES ($1,$2),($2,$1) ON CONFLICT DO NOTHING",
+      [request.from_user, request.to_user]
+    );
+  }
+
+  await run("DELETE FROM friend_requests WHERE id=$1", [requestId]);
+
+  res.json({ ok: true });
+});
+
+// ================= RANKING =================
+// ✅ Ranking global (top 10) por skill
+app.get("/api/rank/skills", auth, async (req, res) => {
+  const rows = await all(
+    `SELECT u.username, s.state
+     FROM users u
+     JOIN states s ON s.user_id = u.id`
+  );
+
+  const out = {}; // { skillId: [{username, level}, ...] }
+
+  for (const row of rows) {
+    const state = row.state;
+    const skills = state?.skills;
+    if (!skills || typeof skills !== "object") continue;
+
+    for (const [skillId, sk] of Object.entries(skills)) {
+      const level = Number(sk?.level || 0);
+      if (!out[skillId]) out[skillId] = [];
+      out[skillId].push({ username: row.username, level });
+    }
+  }
+
+  for (const skillId of Object.keys(out)) {
+    out[skillId] = out[skillId]
+      .sort((a, b) => b.level - a.level)
+      .slice(0, 10);
+  }
+
+  res.json({ skills: out });
 });
 
 // ================= STATIC =================
@@ -265,7 +346,7 @@ async function start() {
   });
 }
 
-start().catch(err => {
+start().catch((err) => {
   console.error("Falha ao iniciar:", err);
   process.exit(1);
 });
