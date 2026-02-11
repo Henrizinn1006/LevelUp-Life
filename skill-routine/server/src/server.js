@@ -181,6 +181,18 @@ app.put("/api/state", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ✅ Quem sou eu (para o dashboard)
+app.get("/auth/me", auth, async (req, res) => {
+  try {
+    const me = await getAuthedUser(req); // {id,email,username}
+    if (!me) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json(me);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erro no servidor" });
+  }
+});
+
 // ================= FRIENDS =================
 app.get("/api/users/search", auth, async (req, res) => {
   const q = String(req.query.q || "").trim();
