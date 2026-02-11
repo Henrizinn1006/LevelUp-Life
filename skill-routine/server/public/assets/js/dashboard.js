@@ -1,8 +1,8 @@
 // server/public/assets/js/dashboard.js
-const API_BASE = "https://levelup-life-ncrx.onrender.com";
 
 const $ = (id) => document.getElementById(id);
 
+// ===== UI refs =====
 const btnLogout = $("btnLogout");
 
 const activityEl = $("activity");
@@ -24,22 +24,6 @@ const xpModal = $("xpModal");
 const xpText = $("xpText");
 const xpOk = $("xpOk");
 
-const TOKEN_KEY = "skillRoutine_token";
-
-// Usa a API pública quando estiver fora do Render.
-// Se o site estiver aberto no próprio Render, usa a mesma origem.
-const API_URL =
-  window.location.hostname.includes("onrender.com")
-    ? window.location.origin
-    : API_BASE;
-
-function withApiUrl(path) {
-  if (!path) return API_URL;
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
-}
-
-
 // ===== Amigos (UI) =====
 const friendNickEl = $("friendNick");
 const btnAddFriend = $("btnAddFriend");
@@ -55,76 +39,68 @@ const btnRefreshRank = $("btnRefreshRank");
 const rankListEl = $("rankList");
 const rankMsgEl = $("rankMsg");
 
-// Atividades reais -> qual skill principal elas treinam
-const ACTIVITIES = [
-  { id: "estudar", label: "Estudar", skill: "inteligencia" },
-  { id: "treinar", label: "Treinar (musculação)", skill: "saude" },
-  { id: "cardio", label: "Cardio / corrida", skill: "energia" },
-  { id: "leitura", label: "Leitura", skill: "determinacao" },
-  { id: "meditacao", label: "Meditação", skill: "disciplina" },
-  { id: "organizacao", label: "Organizar rotina / casa", skill: "organizacao" },
-  { id: "criativo", label: "Projeto criativo", skill: "criatividade" },
-  { id: "social", label: "Socializar / networking", skill: "social" },
-  { id: "trabalho", label: "Trabalho profundo", skill: "determinacao" },
-];
+// ===== API =====
+const API_BASE = "https://levelup-life-ncrx.onrender.com";
+const TOKEN_KEY = "skillRoutine_token";
 
-const activitySkillMap = {
-  "Estudar": {
-    inteligencia: 1.0,
-    determinacao: 0.6,
-    disciplina: 0.4,
-  },
-  "Treinar (musculação)": {
-    saude: 1.0,
-    disciplina: 0.5,
-    energia: 0.4,
-  },
-  "Cardio / corrida": {
-    saude: 1.0,
-    energia: 0.6,
-    disciplina: 0.3,
-  },
-  "Leitura": {
-    inteligencia: 0.7,
-    determinacao: 0.5,
-  },
-  "Meditação": {
-    determinacao: 1.0,
-    energia: 0.6,
-    saude: 0.4,
-  },
-  "Projeto criativo": {
-    criatividade: 1.0,
-    determinacao: 0.5,
-    disciplina: 0.3,
-  },
-  "Organizar rotina / casa": {
-    organizacao: 1.0,
-    disciplina: 0.6,
-  },
-  "Socializar / networking": {
-    social: 1.0,
-    energia: 0.4,
-  },
-  "Trabalho profundo": {
-    determinacao: 1.0,
-    disciplina: 0.8,
-    inteligencia: 0.4,
-  },
-};
+const API_URL =
+  window.location.hostname.endsWith("onrender.com")
+    ? window.location.origin
+    : API_BASE;
 
-const SKILLS = ["determinacao","inteligencia","disciplina","organizacao","saude","energia","criatividade","social"];
-const MAX_LEVEL = 20;
+function withApiUrl(path) {
+  if (!path) return API_URL;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
-// ===== Conquistas (localStorage) =====
-const ACHIEVEMENTS = [
-  { id: "first_activity", text: "Primeira atividade concluída" },
-  { id: "focus_10", text: "10 atividades de determinação" },
-  { id: "study_5", text: "5 dias desenvolvendo inteligência" },
-];
+/**
+ * ✅ Endpoint do "me"
+ * Se sua API NÃO tiver /api/me, troque aqui para o correto (ex: "/auth/me")
+ */
+const ME_ENDPOINT = "/api/me";
 
+// ===============================
+// FETCH COM TIMEOUT + RETRY
+// ===============================
+async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchRetry(url, options = {}, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fetchWithTimeout(url, options, 45000);
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+function extractApiError(data, fallback = "Erro na API") {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  return data.detail || data.message || data.error || fallback;
+}
+
+// ✅ session primeiro, depois local
 function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 function authHeaders() {
@@ -132,70 +108,15 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function todayKey(ts = Date.now()) {
-  const d = new Date(ts);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const da = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${da}`;
-}
-
-function defaultState() {
-  const skills = {};
-  for (const id of SKILLS) skills[id] = { level: 1, xp: 0 };
-
-  return {
-    createdAt: Date.now(),
-    skills,
-    dailyEarned: {},
-    questsByDay: {},
-    log: [],
-  };
-}
-
-function migrateStateSkills(state) {
-  if (!state || typeof state !== "object") return state;
-
-  state.skills ||= {};
-
-  if (state.skills.foco && !state.skills.determinacao) {
-    state.skills.determinacao = state.skills.foco;
-  }
-  if (state.skills.estudo && !state.skills.inteligencia) {
-    state.skills.inteligencia = state.skills.estudo;
-  }
-
-  delete state.skills.foco;
-  delete state.skills.estudo;
-
-  for (const id of SKILLS) {
-    if (!state.skills[id]) state.skills[id] = { level: 1, xp: 0 };
-  }
-
-  if (Array.isArray(state.log)) {
-    for (const entry of state.log) {
-      if (entry?.skill === "foco") entry.skill = "determinacao";
-      if (entry?.skill === "estudo") entry.skill = "inteligencia";
-
-      if (entry?.gainedBySkill && typeof entry.gainedBySkill === "object") {
-        const mapped = {};
-        for (const [k, v] of Object.entries(entry.gainedBySkill)) {
-          const nk = k === "foco" ? "determinacao" : k === "estudo" ? "inteligencia" : k;
-          mapped[nk] = (Number(mapped[nk]) || 0) + (Number(v) || 0);
-        }
-        entry.gainedBySkill = mapped;
-      }
-    }
-  }
-
-  return state;
-}
-
 async function apiGet(url) {
-  const res = await fetch(withApiUrl(url), { headers: { ...authHeaders() } });
+  const res = await fetchRetry(withApiUrl(url), {
+    headers: { ...authHeaders() },
+  });
+
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const err = new Error(data.error || "Erro na API");
+    const err = new Error(extractApiError(data, `Erro ${res.status}`));
     err.status = res.status;
     throw err;
   }
@@ -203,14 +124,16 @@ async function apiGet(url) {
 }
 
 async function apiPost(url, body) {
-  const res = await fetch(withApiUrl(url), {
+  const res = await fetchRetry(withApiUrl(url), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
+
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const err = new Error(data.error || "Erro na API");
+    const err = new Error(extractApiError(data, `Erro ${res.status}`));
     err.status = res.status;
     throw err;
   }
@@ -218,23 +141,25 @@ async function apiPost(url, body) {
 }
 
 async function apiPut(url, body) {
-  const res = await fetch(withApiUrl(url), {
+  const res = await fetchRetry(withApiUrl(url), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-    },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
+
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const err = new Error(data.error || "Erro na API");
+    const err = new Error(extractApiError(data, `Erro ${res.status}`));
     err.status = res.status;
     throw err;
   }
   return data;
 }
 
+// ===============================
+// UI helpers
+// ===============================
 function showServerSleeping() {
   document.getElementById("serverSleep")?.classList.remove("hidden");
 }
@@ -244,7 +169,8 @@ function hideServerSleeping() {
 }
 
 function showXP(textOrAmount) {
-  const text = typeof textOrAmount === "number" ? `+${textOrAmount} XP` : String(textOrAmount);
+  const text =
+    typeof textOrAmount === "number" ? `+${textOrAmount} XP` : String(textOrAmount);
 
   const el = document.createElement("div");
   el.className = "xp-float";
@@ -274,6 +200,296 @@ function hideXP() {
   xpModal.classList.add("hidden");
 }
 
+// ===============================
+// Data / game logic
+// ===============================
+const ACTIVITIES = [
+  { id: "estudar", label: "Estudar", skill: "inteligencia" },
+  { id: "treinar", label: "Treinar (musculação)", skill: "saude" },
+  { id: "cardio", label: "Cardio / corrida", skill: "energia" },
+  { id: "leitura", label: "Leitura", skill: "determinacao" },
+  { id: "meditacao", label: "Meditação", skill: "disciplina" },
+  { id: "organizacao", label: "Organizar rotina / casa", skill: "organizacao" },
+  { id: "criativo", label: "Projeto criativo", skill: "criatividade" },
+  { id: "social", label: "Socializar / networking", skill: "social" },
+  { id: "trabalho", label: "Trabalho profundo", skill: "determinacao" },
+];
+
+const activitySkillMap = {
+  Estudar: { inteligencia: 1.0, determinacao: 0.6, disciplina: 0.4 },
+  "Treinar (musculação)": { saude: 1.0, disciplina: 0.5, energia: 0.4 },
+  "Cardio / corrida": { saude: 1.0, energia: 0.6, disciplina: 0.3 },
+  Leitura: { inteligencia: 0.7, determinacao: 0.5 },
+  Meditação: { determinacao: 1.0, energia: 0.6, saude: 0.4 },
+  "Projeto criativo": { criatividade: 1.0, determinacao: 0.5, disciplina: 0.3 },
+  "Organizar rotina / casa": { organizacao: 1.0, disciplina: 0.6 },
+  "Socializar / networking": { social: 1.0, energia: 0.4 },
+  "Trabalho profundo": { determinacao: 1.0, disciplina: 0.8, inteligencia: 0.4 },
+};
+
+const SKILLS = [
+  "determinacao",
+  "inteligencia",
+  "disciplina",
+  "organizacao",
+  "saude",
+  "energia",
+  "criatividade",
+  "social",
+];
+
+const MAX_LEVEL = 20;
+
+// ===== Conquistas (localStorage) =====
+const ACHIEVEMENTS = [
+  { id: "first_activity", text: "Primeira atividade concluída" },
+  { id: "focus_10", text: "10 atividades de determinação" },
+  { id: "study_5", text: "5 dias desenvolvendo inteligência" },
+];
+
+function todayKey(ts = Date.now()) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+function defaultState() {
+  const skills = {};
+  for (const id of SKILLS) skills[id] = { level: 1, xp: 0 };
+
+  return {
+    createdAt: Date.now(),
+    skills,
+    dailyEarned: {},
+    questsByDay: {},
+    log: [],
+  };
+}
+
+function migrateStateSkills(state) {
+  if (!state || typeof state !== "object") return state;
+  state.skills ||= {};
+
+  if (state.skills.foco && !state.skills.determinacao) {
+    state.skills.determinacao = state.skills.foco;
+  }
+  if (state.skills.estudo && !state.skills.inteligencia) {
+    state.skills.inteligencia = state.skills.estudo;
+  }
+
+  delete state.skills.foco;
+  delete state.skills.estudo;
+
+  for (const id of SKILLS) {
+    if (!state.skills[id]) state.skills[id] = { level: 1, xp: 0 };
+  }
+
+  if (Array.isArray(state.log)) {
+    for (const entry of state.log) {
+      if (entry?.skill === "foco") entry.skill = "determinacao";
+      if (entry?.skill === "estudo") entry.skill = "inteligencia";
+
+      if (entry?.gainedBySkill && typeof entry.gainedBySkill === "object") {
+        const mapped = {};
+        for (const [k, v] of Object.entries(entry.gainedBySkill)) {
+          const nk =
+            k === "foco" ? "determinacao" : k === "estudo" ? "inteligencia" : k;
+          mapped[nk] = (Number(mapped[nk]) || 0) + (Number(v) || 0);
+        }
+        entry.gainedBySkill = mapped;
+      }
+    }
+  }
+
+  return state;
+}
+
+function skillLabel(id) {
+  const map = {
+    determinacao: "Determinação",
+    inteligencia: "Inteligência",
+    disciplina: "Disciplina",
+    organizacao: "Organização",
+    saude: "Saúde",
+    energia: "Energia",
+    criatividade: "Criatividade",
+    social: "Social",
+  };
+  return map[id] || id;
+}
+
+// ===== Rank pessoal =====
+function overallLevel(state) {
+  let sum = 0;
+  for (const sk of SKILLS) sum += Number(state?.skills?.[sk]?.level || 0);
+  return sum;
+}
+
+function personalTitle(totalLevel) {
+  const tiers = [
+    { min: 0, title: "Beta" },
+    { min: 10, title: "Iniciante" },
+    { min: 20, title: "Em progresso" },
+    { min: 35, title: "Intermediário" },
+    { min: 50, title: "Avançado" },
+    { min: 70, title: "Elite" },
+    { min: 100, title: "Alfa" },
+    { min: 130, title: "Lendário" },
+    { min: 170, title: "mestre" },
+    { min: 220, title: "aura ♾️" },
+  ];
+
+  let best = tiers[0];
+  for (const t of tiers) if (totalLevel >= t.min) best = t;
+  const next = tiers.find((t) => t.min > best.min) || null;
+
+  return { current: best.title, nextMin: next?.min ?? null, nextTitle: next?.title ?? null };
+}
+
+function renderPersonalRank(state, username) {
+  if (!personalRankEl) return;
+
+  const total = overallLevel(state);
+  const t = personalTitle(total);
+
+  const nextText = t.nextMin ? `Próximo: ${t.nextTitle} no nível ${t.nextMin}` : `Topo máximo alcançado`;
+
+  personalRankEl.innerHTML = `
+    <div class="rank-badge">
+      <div class="title">${t.current}</div>
+      <div class="meta">${username ? `@${username} • ` : ""}Nível geral: ${total}</div>
+      <div class="meta">${nextText}</div>
+    </div>
+  `;
+}
+
+// ===== XP/Level =====
+function xpToNext(level) {
+  return 100 + (level - 1) * 40;
+}
+
+function addXP(skill, amount) {
+  skill.xp += amount;
+  while (skill.xp >= xpToNext(skill.level)) {
+    skill.xp -= xpToNext(skill.level);
+    skill.level += 1;
+  }
+}
+
+function computeXP({ minutes, difficulty, noDistraction }) {
+  const m = Math.max(1, Number(minutes) || 1);
+  const diffMul = difficulty === "dificil" ? 1.35 : difficulty === "medio" ? 1.15 : 1.0;
+  const ndMul = noDistraction ? 1.2 : 1.0;
+  const base = Math.min(240, m * 2);
+  return Math.round(base * diffMul * ndMul);
+}
+
+function aplicarXPAtividade(atividadeLabel, xpBase) {
+  const skills = activitySkillMap[atividadeLabel];
+  if (!skills) {
+    console.warn("Atividade sem skills mapeadas:", atividadeLabel);
+    return { total: 0, gainedBySkill: {} };
+  }
+
+  let total = 0;
+  const gainedBySkill = {};
+  const ganhos = [];
+
+  for (const [skillId, peso] of Object.entries(skills)) {
+    const xpFinal = Math.round(xpBase * peso);
+    if (xpFinal <= 0) continue;
+    const skillState = state?.skills?.[skillId];
+    if (!skillState) continue;
+
+    addXP(skillState, xpFinal);
+    gainedBySkill[skillId] = xpFinal;
+    total += xpFinal;
+    ganhos.push({ skill: skillId, xp: xpFinal });
+  }
+
+  mostrarResumoXP(ganhos);
+  return { total, gainedBySkill };
+}
+
+function mostrarResumoXP(ganhos) {
+  if (!ganhos?.length) return;
+
+  const mensagem = ganhos.map((g) => `+${g.xp} XP em ${skillLabel(g.skill)}`).join("<br>");
+  showXPHTML(`<strong>✨ Atividade concluída</strong><br><br>${mensagem}`);
+}
+
+// ===== Quests =====
+function generateQuests(state, dateKey) {
+  const skillIds = Object.keys(state.skills);
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const templates = [
+    { type: "minutes", text: (s, n) => `Faça ${n} min de ${skillLabel(s)}` },
+    { type: "nodistraction", text: (s) => `1 atividade de ${skillLabel(s)} sem distrações` },
+    { type: "count", text: (s, n) => `Conclua ${n} atividades de ${skillLabel(s)}` },
+  ];
+
+  const quests = [];
+  for (let i = 0; i < 3; i++) {
+    const skill = pick(skillIds);
+    const t = pick(templates);
+
+    if (t.type === "minutes") {
+      const n = pick([15, 20, 30, 40, 60]);
+      quests.push({
+        id: `${dateKey}-${i}`,
+        skill,
+        kind: "minutes",
+        target: n,
+        progress: 0,
+        done: false,
+        text: t.text(skill, n),
+      });
+    } else if (t.type === "nodistraction") {
+      quests.push({
+        id: `${dateKey}-${i}`,
+        skill,
+        kind: "nodistraction",
+        target: 1,
+        progress: 0,
+        done: false,
+        text: t.text(skill),
+      });
+    } else {
+      const n = pick([1, 2, 3]);
+      quests.push({
+        id: `${dateKey}-${i}`,
+        skill,
+        kind: "count",
+        target: n,
+        progress: 0,
+        done: false,
+        text: t.text(skill, n),
+      });
+    }
+  }
+
+  state.questsByDay[dateKey] = quests;
+  return quests;
+}
+
+function updateQuestsWithActivity(state, dateKey, activity) {
+  const quests = state.questsByDay[dateKey] || [];
+  for (const q of quests) {
+    if (q.done) continue;
+    if (q.skill !== activity.skill) continue;
+
+    if (q.kind === "minutes") q.progress += activity.minutes;
+    if (q.kind === "count") q.progress += 1;
+    if (q.kind === "nodistraction") q.progress += activity.noDistraction ? 1 : 0;
+
+    if (q.progress >= q.target) q.done = true;
+  }
+}
+
+// ===== Achievements =====
 function unlockAchievement(id) {
   const unlocked = JSON.parse(localStorage.getItem("achievements") || "[]");
   if (unlocked.includes(id)) return;
@@ -311,244 +527,10 @@ function countStudyDays(state) {
 }
 
 function getRadarValue(skill) {
-  return Math.min(MAX_LEVEL, skill.level + (skill.xp / xpToNext(skill.level)));
+  return Math.min(MAX_LEVEL, skill.level + skill.xp / xpToNext(skill.level));
 }
 
-function skillLabel(id) {
-  const map = {
-    determinacao: "Determinação",
-    inteligencia: "Inteligência",
-    disciplina: "Disciplina",
-    organizacao: "Organização",
-    saude: "Saúde",
-    energia: "Energia",
-    criatividade: "Criatividade",
-    social: "Social",
-  };
-  return map[id] || id;
-}
-
-// ===== Rank pessoal: nível geral + título =====
-// "nível geral" = soma dos níveis de todas as skills
-function overallLevel(state) {
-  let sum = 0;
-  for (const sk of SKILLS) sum += Number(state?.skills?.[sk]?.level || 0);
-  return sum;
-}
-
-function personalTitle(totalLevel) {
-  // você pode editar essa tabela à vontade
-  const tiers = [
-    { min: 0,  title: "Beta" },
-    { min: 10, title: "Iniciante" },
-    { min: 20, title: "Em progresso" },
-    { min: 35, title: "Intermediário" },
-    { min: 50, title: "Avançado" },
-    { min: 70, title: "Elite" },
-    { min: 100, title: "Alfa" },
-    { min: 130, title: "Lendário" },
-    { min: 170, title: "mestre" },
-    { min: 220, title: "aura ♾️" },
-  ];
-
-  let best = tiers[0];
-  for (const t of tiers) if (totalLevel >= t.min) best = t;
-  const next = tiers.find(t => t.min > best.min) || null;
-
-  return { current: best.title, nextMin: next?.min ?? null, nextTitle: next?.title ?? null };
-}
-
-function renderPersonalRank(state, username) {
-  if (!personalRankEl) return;
-
-  const total = overallLevel(state);
-  const t = personalTitle(total);
-
-  const nextText = t.nextMin
-    ? `Próximo: ${t.nextTitle} no nível ${t.nextMin}`
-    : `Topo máximo alcançado`;
-
-  personalRankEl.innerHTML = `
-    <div class="rank-badge">
-      <div class="title">${t.current}</div>
-      <div class="meta">${username ? `@${username} • ` : ""}Nível geral: ${total}</div>
-      <div class="meta">${nextText}</div>
-    </div>
-  `;
-}
-
-// ===== XP/Level =====
-function xpToNext(level) {
-  return 100 + (level - 1) * 40;
-}
-
-function addXP(skill, amount) {
-  skill.xp += amount;
-  while (skill.xp >= xpToNext(skill.level)) {
-    skill.xp -= xpToNext(skill.level);
-    skill.level += 1;
-  }
-}
-
-function aplicarXPAtividade(atividadeLabel, xpBase) {
-  const skills = activitySkillMap[atividadeLabel];
-  if (!skills) {
-    console.warn("Atividade sem skills mapeadas:", atividadeLabel);
-    return { total: 0, gainedBySkill: {} };
-  }
-
-  let total = 0;
-  const gainedBySkill = {};
-  const ganhos = [];
-
-  for (const [skillId, peso] of Object.entries(skills)) {
-    const xpFinal = Math.round(xpBase * peso);
-    if (xpFinal <= 0) continue;
-    const skillState = state?.skills?.[skillId];
-    if (!skillState) continue;
-    addXP(skillState, xpFinal);
-    gainedBySkill[skillId] = xpFinal;
-    total += xpFinal;
-    ganhos.push({ skill: skillId, xp: xpFinal });
-  }
-
-  mostrarResumoXP(ganhos);
-
-  return { total, gainedBySkill };
-}
-
-function mostrarResumoXP(ganhos) {
-  if (!ganhos?.length) return;
-  const mensagem = ganhos
-    .map(g => `+${g.xp} XP em ${skillLabel(g.skill)}`)
-    .join("<br>");
-
-  showXPHTML(`<strong>✨ Atividade concluída</strong><br><br>${mensagem}`);
-}
-
-function computeXP({ minutes, difficulty, noDistraction }) {
-  const m = Math.max(1, Number(minutes) || 1);
-  const diffMul = difficulty === "dificil" ? 1.35 : difficulty === "medio" ? 1.15 : 1.0;
-  const ndMul = noDistraction ? 1.2 : 1.0;
-  const base = Math.min(240, m * 2);
-  return Math.round(base * diffMul * ndMul);
-}
-
-// ===== Quests =====
-function generateQuests(state, dateKey) {
-  const skillIds = Object.keys(state.skills);
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-  const templates = [
-    { type: "minutes", text: (s, n) => `Faça ${n} min de ${skillLabel(s)}` },
-    { type: "nodistraction", text: (s) => `1 atividade de ${skillLabel(s)} sem distrações` },
-    { type: "count", text: (s, n) => `Conclua ${n} atividades de ${skillLabel(s)}` },
-  ];
-
-  const quests = [];
-  for (let i = 0; i < 3; i++) {
-    const skill = pick(skillIds);
-    const t = pick(templates);
-
-    if (t.type === "minutes") {
-      const n = pick([15, 20, 30, 40, 60]);
-      quests.push({ id: `${dateKey}-${i}`, skill, kind: "minutes", target: n, progress: 0, done: false, text: t.text(skill, n) });
-    } else if (t.type === "nodistraction") {
-      quests.push({ id: `${dateKey}-${i}`, skill, kind: "nodistraction", target: 1, progress: 0, done: false, text: t.text(skill) });
-    } else {
-      const n = pick([1, 2, 3]);
-      quests.push({ id: `${dateKey}-${i}`, skill, kind: "count", target: n, progress: 0, done: false, text: t.text(skill, n) });
-    }
-  }
-
-  state.questsByDay[dateKey] = quests;
-  return quests;
-}
-
-function updateQuestsWithActivity(state, dateKey, activity) {
-  const quests = state.questsByDay[dateKey] || [];
-  for (const q of quests) {
-    if (q.done) continue;
-    if (q.skill !== activity.skill) continue;
-
-    if (q.kind === "minutes") q.progress += activity.minutes;
-    if (q.kind === "count") q.progress += 1;
-    if (q.kind === "nodistraction") q.progress += activity.noDistraction ? 1 : 0;
-
-    if (q.progress >= q.target) q.done = true;
-  }
-}
-
-// ===== Render principal =====
-function render(state, username) {
-  const dateKey = todayKey();
-
-  const earnedRaw = state?.dailyEarned?.[dateKey];
-  const earned = Number.isFinite(Number(earnedRaw)) ? Number(earnedRaw) : 0;
-  if (dayInfoEl) dayInfoEl.textContent = `XP ganho hoje: ${earned}`;
-
-  renderPersonalRank(state, username);
-
-  const quests = state.questsByDay[dateKey] || [];
-  if (questsEl) {
-    questsEl.innerHTML = quests.length
-      ? quests.map((q) => {
-          const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
-          return `
-            <div>
-              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-                <div><strong>${q.text}</strong></div>
-                <div class="muted">${q.done ? "✅" : `${q.progress}/${q.target}`}</div>
-              </div>
-              <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.10);margin-top:8px;overflow:hidden;">
-                <div style="height:100%;width:${pct}%;background:rgba(0,204,102,0.75);"></div>
-              </div>
-            </div>
-          `;
-        }).join("")
-      : `<div class="muted">Nenhuma quest gerada hoje.</div>`;
-  }
-
-  const log = state.log || [];
-  if (logEl) {
-    const last = log.slice(-12).reverse();
-    logEl.innerHTML = last.length
-      ? last.map((e) => {
-          const d = new Date(e.at);
-          const hh = String(d.getHours()).padStart(2, "0");
-          const mm = String(d.getMinutes()).padStart(2, "0");
-          return `<div><strong>${hh}:${mm}</strong> — ${e.text}</div>`;
-        }).join("")
-      : `<div class="muted">Sem histórico ainda.</div>`;
-  }
-
-  const skillIds = Object.keys(state.skills);
-  if (skillsEl) {
-    skillsEl.innerHTML = skillIds.map((id) => {
-      const s = state.skills[id];
-      const pct = Math.min(100, Math.round((s.xp / xpToNext(s.level)) * 100));
-      return `
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-            <div><strong>${skillLabel(id)}</strong></div>
-            <div class="muted">Nv ${s.level}</div>
-          </div>
-          <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.10);margin-top:8px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:rgba(0,204,102,0.75);"></div>
-          </div>
-          <div class="muted" style="margin-top:6px;">${s.xp}/${xpToNext(s.level)} XP</div>
-        </div>
-      `;
-    }).join("");
-  }
-
-  if (activityEl) {
-    activityEl.innerHTML = ACTIVITIES.map((a) => `<option value="${a.id}">${a.label}</option>`).join("");
-  }
-
-  drawRadar(state);
-}
-
+// ===== Radar =====
 function drawRadar(state) {
   if (!radar) return;
   const ctx = radar.getContext("2d");
@@ -587,6 +569,7 @@ function drawRadar(state) {
 
   const labelRadius = r + 18;
   ctx.font = "13px Segoe UI, Arial, sans-serif";
+
   for (let i = 0; i < n; i++) {
     const id = ids[i];
     const ang = -Math.PI / 2 + (i * 2 * Math.PI) / n;
@@ -640,7 +623,6 @@ async function refreshFriends() {
     const fr = await apiGet("/api/friends");
     const list = fr.friends || [];
 
-    // 👇 AQUI FOI A TROCA
     if (friendsListEl) {
       if (!list.length) {
         friendsListEl.innerHTML = `<div class="muted">Você ainda não tem amigos.</div>`;
@@ -652,57 +634,62 @@ async function refreshFriends() {
             try {
               const p = await apiGet(`/api/users/public?username=${encodeURIComponent(nick)}`);
               return { ok: true, nick, ...p };
-            } catch (e) {
+            } catch {
               return { ok: false, nick };
             }
           })
         );
 
-        friendsListEl.innerHTML = profiles.map((p) => {
-          if (!p.ok) {
-            return `<div>🤝 <strong>${p.nick}</strong> <span class="muted">— sem dados</span></div>`;
-          }
+        friendsListEl.innerHTML = profiles
+          .map((p) => {
+            if (!p.ok) {
+              return `<div>🤝 <strong>${p.nick}</strong> <span class="muted">— sem dados</span></div>`;
+            }
 
-          const titleObj = personalTitle(Number(p.overallLevel || 0));
-          const title = titleObj.current;
+            const titleObj = personalTitle(Number(p.overallLevel || 0));
+            const title = titleObj.current;
 
-          return `
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-              <div>🤝 <strong>${p.nick}</strong></div>
-              <div class="muted">${title} • Nv ${p.overallLevel}</div>
-            </div>
-          `;
-        }).join("");
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                <div>🤝 <strong>${p.nick}</strong></div>
+                <div class="muted">${title} • Nv ${p.overallLevel}</div>
+              </div>
+            `;
+          })
+          .join("");
       }
     }
   } catch (e) {
     console.error(e);
   }
 
-  // 👇 ESSA PARTE NÃO MUDA
   try {
     const rr = await apiGet("/api/friends/requests");
     const reqs = rr.requests || [];
+
     if (friendRequestsEl) {
       friendRequestsEl.innerHTML = reqs.length
-        ? reqs.map(r => `
-            <div>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                <div>📩 <strong>${r.from_username}</strong></div>
-                <div class="row" style="gap:8px;">
-                  <button class="primary" data-accept="${r.id}">Aceitar</button>
-                  <button class="danger" data-reject="${r.id}">Recusar</button>
-                </div>
+        ? reqs
+            .map(
+              (r) => `
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <div>📩 <strong>${r.from_username}</strong></div>
+              <div class="row" style="gap:8px;">
+                <button class="primary" data-accept="${r.id}">Aceitar</button>
+                <button class="danger" data-reject="${r.id}">Recusar</button>
               </div>
             </div>
-          `).join("")
+          </div>
+        `
+            )
+            .join("")
         : `<div class="muted">Sem pedidos.</div>`;
     }
   } catch (e) {
     console.error(e);
   }
 }
-
 
 async function sendFriendRequest(username) {
   setFriendsMsg("");
@@ -742,14 +729,18 @@ async function searchUsers(q) {
 
     if (!friendSuggestionsEl) return;
     friendSuggestionsEl.innerHTML = users.length
-      ? users.map(u => `
-          <div class="suggestion">
-            <div class="nick">${u.username}</div>
-            <div class="mini">
-              <button class="primary" data-addnick="${u.username}">Adicionar</button>
-            </div>
+      ? users
+          .map(
+            (u) => `
+        <div class="suggestion">
+          <div class="nick">${u.username}</div>
+          <div class="mini">
+            <button class="primary" data-addnick="${u.username}">Adicionar</button>
           </div>
-        `).join("")
+        </div>
+      `
+          )
+          .join("")
       : `<div class="muted">Nenhum usuário encontrado.</div>`;
   } catch (e) {
     console.error(e);
@@ -766,7 +757,7 @@ function setRankMsg(text) {
 
 function buildRankSkillSelect() {
   if (!rankSkillEl) return;
-  rankSkillEl.innerHTML = SKILLS.map(sk => `<option value="${sk}">${skillLabel(sk)}</option>`).join("");
+  rankSkillEl.innerHTML = SKILLS.map((sk) => `<option value="${sk}">${skillLabel(sk)}</option>`).join("");
 }
 
 function renderRank(skillId) {
@@ -778,15 +769,17 @@ function renderRank(skillId) {
     return;
   }
 
-  rankListEl.innerHTML = list.map((row, idx) => {
-    const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🏅";
-    return `
+  rankListEl.innerHTML = list
+    .map((row, idx) => {
+      const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🏅";
+      return `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <div>${medal} <strong>${idx + 1}.</strong> ${row.username}</div>
         <div class="muted">Nv ${row.level}</div>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 }
 
 async function loadRank() {
@@ -820,13 +813,13 @@ function setRadarHighlight(skillIds) {
 async function boot(retry = 0) {
   const token = getToken();
   if (!token) {
-   window.location.replace("login.html");
+    window.location.replace("login.html");
     return;
   }
 
   try {
     // user
-    me = await apiGet("/api/me");
+    me = await apiGet(ME_ENDPOINT);
 
     // state
     const data = await apiGet("/api/state");
@@ -854,7 +847,11 @@ async function boot(retry = 0) {
 
     render(state, me?.username);
 
-    try { await saveState(state); } catch (e) { console.error(e); }
+    try {
+      await saveState(state);
+    } catch (e) {
+      console.error(e);
+    }
 
     await refreshFriends();
 
@@ -862,29 +859,107 @@ async function boot(retry = 0) {
     await loadRank();
 
     hideServerSleeping();
-
   } catch (e) {
     console.warn("Boot falhou:", e);
 
+    // ✅ só desloga se for auth
     if (e?.status === 401 || e?.status === 403) {
-      localStorage.removeItem(TOKEN_KEY);
-      sessionStorage.removeItem(TOKEN_KEY);
+      clearToken();
       window.location.replace("login.html");
       return;
     }
 
+    // ✅ rede/timeout/404/500 => retry
     if (retry < 3) {
       showServerSleeping();
       setTimeout(() => boot(retry + 1), 2000);
-    } else {
-      alert("Servidor demorou para responder. Tente novamente.");
+      return;
     }
+
+    hideServerSleeping();
+    alert("Servidor demorou para responder. Tente novamente.");
   }
 }
 
+// ===== Render principal =====
+function render(state, username) {
+  const dateKey = todayKey();
+
+  const earnedRaw = state?.dailyEarned?.[dateKey];
+  const earned = Number.isFinite(Number(earnedRaw)) ? Number(earnedRaw) : 0;
+  if (dayInfoEl) dayInfoEl.textContent = `XP ganho hoje: ${earned}`;
+
+  renderPersonalRank(state, username);
+
+  const quests = state.questsByDay[dateKey] || [];
+  if (questsEl) {
+    questsEl.innerHTML = quests.length
+      ? quests
+          .map((q) => {
+            const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
+            return `
+            <div>
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                <div><strong>${q.text}</strong></div>
+                <div class="muted">${q.done ? "✅" : `${q.progress}/${q.target}`}</div>
+              </div>
+              <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.10);margin-top:8px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:rgba(0,204,102,0.75);"></div>
+              </div>
+            </div>
+          `;
+          })
+          .join("")
+      : `<div class="muted">Nenhuma quest gerada hoje.</div>`;
+  }
+
+  const log = state.log || [];
+  if (logEl) {
+    const last = log.slice(-12).reverse();
+    logEl.innerHTML = last.length
+      ? last
+          .map((e) => {
+            const d = new Date(e.at);
+            const hh = String(d.getHours()).padStart(2, "0");
+            const mm = String(d.getMinutes()).padStart(2, "0");
+            return `<div><strong>${hh}:${mm}</strong> — ${e.text}</div>`;
+          })
+          .join("")
+      : `<div class="muted">Sem histórico ainda.</div>`;
+  }
+
+  const skillIds = Object.keys(state.skills);
+  if (skillsEl) {
+    skillsEl.innerHTML = skillIds
+      .map((id) => {
+        const s = state.skills[id];
+        const pct = Math.min(100, Math.round((s.xp / xpToNext(s.level)) * 100));
+        return `
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div><strong>${skillLabel(id)}</strong></div>
+            <div class="muted">Nv ${s.level}</div>
+          </div>
+          <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.10);margin-top:8px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:rgba(0,204,102,0.75);"></div>
+          </div>
+          <div class="muted" style="margin-top:6px;">${s.xp}/${xpToNext(s.level)} XP</div>
+        </div>
+      `;
+      })
+      .join("");
+  }
+
+  if (activityEl) {
+    activityEl.innerHTML = ACTIVITIES.map((a) => `<option value="${a.id}">${a.label}</option>`).join("");
+  }
+
+  drawRadar(state);
+}
+
+// ===== Eventos =====
 btnLogout?.addEventListener("click", () => {
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
+  clearToken();
   window.location.replace("login.html");
 });
 
@@ -895,21 +970,29 @@ btnNewQuests?.addEventListener("click", async () => {
   const dk = todayKey();
   generateQuests(state, dk);
   render(state, me?.username);
-  try { await saveState(state); } catch (e) { console.error(e); }
+  try {
+    await saveState(state);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 btnReset?.addEventListener("click", async () => {
   if (!confirm("Resetar tudo? Isso apaga suas skills/quests/histórico.")) return;
   state = defaultState();
   render(state, me?.username);
-  try { await saveState(state); } catch (e) { console.error(e); }
+  try {
+    await saveState(state);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 btnComplete?.addEventListener("click", async () => {
   if (!state) return;
 
   const activityId = activityEl?.value || "estudar";
-  const activity = ACTIVITIES.find(a => a.id === activityId) || ACTIVITIES[0];
+  const activity = ACTIVITIES.find((a) => a.id === activityId) || ACTIVITIES[0];
   const skill = activity.skill;
 
   const minutes = Math.max(1, Number(minutesEl?.value || 1));
@@ -925,7 +1008,9 @@ btnComplete?.addEventListener("click", async () => {
 
   const entry = {
     at: Date.now(),
-    text: `${activity.label} • ${minutes}min • ${difficulty} • ${noDistraction ? "sem distração" : "com distração"} • +${gained} XP`,
+    text: `${activity.label} • ${minutes}min • ${difficulty} • ${
+      noDistraction ? "sem distração" : "com distração"
+    } • +${gained} XP`,
     skill,
     minutes,
     difficulty,
@@ -936,26 +1021,24 @@ btnComplete?.addEventListener("click", async () => {
   state.log.push(entry);
 
   updateQuestsWithActivity(state, dk, entry);
-
   unlockAchievement("first_activity");
 
   const grownSkills = Object.keys(gainedBySkill || {});
   if (grownSkills.length) setRadarHighlight(grownSkills);
 
   const totalDeterminacao = countActivitiesBySkill(state, "determinacao");
-  if (activity.skill === "determinacao" && totalDeterminacao >= 10) {
-    unlockAchievement("focus_10");
-  }
+  if (activity.skill === "determinacao" && totalDeterminacao >= 10) unlockAchievement("focus_10");
 
   const diasEstudo = countStudyDays(state);
-  if (activity.skill === "inteligencia" && diasEstudo >= 5) {
-    unlockAchievement("study_5");
-  }
+  if (activity.skill === "inteligencia" && diasEstudo >= 5) unlockAchievement("study_5");
 
   render(state, me?.username);
-  // popup já exibido em mostrarResumoXP()
 
-  try { await saveState(state); } catch (e) { console.error(e); }
+  try {
+    await saveState(state);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 // ===== Amigos eventos =====
@@ -983,9 +1066,7 @@ btnRefreshRank?.addEventListener("click", async () => {
 document.addEventListener("click", async (e) => {
   const t = e.target;
 
-  if (t?.dataset?.addnick) {
-    await sendFriendRequest(t.dataset.addnick);
-  }
+  if (t?.dataset?.addnick) await sendFriendRequest(t.dataset.addnick);
 
   if (t?.dataset?.accept) {
     const id = Number(t.dataset.accept);
@@ -1008,4 +1089,5 @@ document.addEventListener("click", async (e) => {
   }
 });
 
+// Start
 boot();
