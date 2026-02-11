@@ -58,7 +58,7 @@ function withApiUrl(path) {
  * ✅ Endpoint do "me"
  * Se sua API NÃO tiver /api/me, troque aqui para o correto (ex: "/auth/me")
  */
-const ME_ENDPOINT = "/api/me";
+const ME_ENDPOINT = "/auth/me";
 
 // ===============================
 // FETCH COM TIMEOUT + RETRY
