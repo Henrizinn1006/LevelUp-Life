@@ -1,41 +1,95 @@
-Sobre o projeto
+<h1 align="center">🎮 LevelUp Life</h1>
+<p align="center">Gamificação para criar hábitos e desenvolver habilidades pessoais</p>
 
-LevelUp Life é uma aplicação web que utiliza conceitos de gamificação para ajudar no desenvolvimento pessoal e na criação de hábitos.
+<p align="center">
+  <a href="https://levelup-life-ncrx.onrender.com/login.html">
+    <img src="https://img.shields.io/badge/🚀 Demo ao vivo-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white"/>
+  </a>
+</p>
 
-A ideia central do sistema é transformar atividades do dia a dia em progresso mensurável, semelhante a um jogo. O usuário realiza ações como estudar, treinar ou ler, e essas atividades geram experiência (XP), que é distribuída entre diferentes habilidades.
+<p align="center">
+  <img src="https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white"/>
+  <img src="https://img.shields.io/badge/PWA-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white"/>
+</p>
 
-Com o acúmulo de experiência, o usuário evolui suas habilidades ao longo do tempo, acompanhando seu progresso de forma visual e estruturada.
+---
 
-O projeto foi desenvolvido como uma Progressive Web App (PWA), com o objetivo de aprender e aplicar na prática conceitos modernos de desenvolvimento web, como instalação no dispositivo, comportamento offline e experiência próxima a aplicativos nativos.
+## 🌐 Acesse agora
 
-Além do aspecto técnico, o sistema busca resolver um problema real: dificuldade em manter consistência em hábitos. A gamificação atua como um incentivo, tornando o progresso mais visível e motivador.
+👉 **[levelup-life-ncrx.onrender.com](https://levelup-life-ncrx.onrender.com/login.html)**
 
-Como executar o projeto
+> ⚠️ Hospedado no plano gratuito do Render. O primeiro acesso pode levar até 60 segundos (cold start).
 
-Este projeto foi desenvolvido como uma aplicação web progressiva (PWA), com o objetivo de explorar e aprender na prática conceitos como instalação no dispositivo, funcionamento offline e experiência semelhante a aplicativos nativos.
+---
 
-Atualmente, o sistema não está hospedado em ambiente de produção e roda apenas localmente para fins de desenvolvimento e testes.
+## 📌 Sobre o projeto
 
-Backend
-Instalar dependências:
+O **LevelUp Life** transforma atividades do dia a dia em progresso mensurável, como em um RPG. Ao completar tarefas, o usuário ganha **XP** distribuída entre **habilidades** (estudo, saúde, foco, etc.).
+
+A gamificação torna o progresso visível e gera dopamina ao completar tarefas — o mesmo mecanismo de apps como Duolingo e Habitica.
+
+---
+
+## 🛠️ Tecnologias
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | HTML5 + CSS3 + JavaScript |
+| Backend | Node.js |
+| PWA | Service Worker + Web App Manifest |
+| Deploy | Render (free tier) |
+
+---
+
+## 🎮 Como funciona
+
+1. **Crie uma conta** e defina suas habilidades
+2. **Adicione tarefas** com XP e habilidades associadas
+3. **Conclua as tarefas** e veja sua barra de progresso crescer
+4. **Evolua suas habilidades** com consistência ao longo do tempo
+5. Instale como **PWA** no celular para acesso rápido
+
+---
+
+## 📱 PWA — Instalar no celular
+
+1. Acesse pelo celular
+2. Toque em **"Adicionar à tela inicial"** (Android) ou **"Compartilhar → Adicionar à tela de início"** (iOS)
+3. Abra como um app nativo!
+
+---
+
+## 🚀 Como rodar localmente
+
+```bash
+git clone https://github.com/Henrizinn1006/LevelUp-Life.git
+cd LevelUp-Life
 npm install
-Iniciar servidor:
 node server.js
-
-ou (modo desenvolvimento):
+# ou com auto-reload:
 npx nodemon server.js
+```
 
-Frontend
+Acesse em: **http://localhost:3000**
 
-Para funcionamento completo do PWA, recomenda-se utilizar um servidor local:
+---
 
-Exemplo com Live Server (VS Code) ou:
+## 📊 Funcionalidades
 
-npx serve .
+- ✅ Sistema de XP e evolução de habilidades
+- ✅ Estímulos visuais ao completar tarefas
+- ✅ Gráficos de progresso por habilidade
+- ✅ Interface inspirada em jogos RPG
+- ✅ Instalável como PWA
+- ✅ Design responsivo (mobile e desktop)
 
-Após iniciar, acesse pelo navegador e utilize a opção de instalar o aplicativo (quando disponível).
+---
 
-Observação
+## 👨‍💻 Autor
 
-Este projeto foi desenvolvido com foco em aprendizado, incluindo a implementação de uma Progressive Web App (PWA).
-Não está disponível em hospedagem pública no momento, sendo executado apenas em ambiente local para testes e evolução do sistema.
+**Henrique Tavares**
+- GitHub: [@Henrizinn1006](https://github.com/Henrizinn1006)
+- LinkedIn: [linkedin.com/in/henriquetavares1006](https://linkedin.com/in/henriquetavares1006)
+
+> Projeto originalmente criado por [@Lipezin007](https://github.com/Lipezin007/LevelUp-Life).
